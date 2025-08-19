@@ -17,7 +17,16 @@ export function AuthProvider({ children }) {
     const user = localStorage.getItem('user');
     
     if (token && user) {
-      setCurrentUser(JSON.parse(user));
+      try {
+        // Fixed: Check if user is valid JSON before parsing
+        const parsedUser = JSON.parse(user);
+        setCurrentUser(parsedUser);
+      } catch (error) {
+        console.error('Error parsing user data from localStorage:', error);
+        // If parsing fails, clear the invalid data
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
     }
     
     setLoading(false);

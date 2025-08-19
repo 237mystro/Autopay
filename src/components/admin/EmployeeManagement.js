@@ -591,7 +591,7 @@ const EmployeeManagement = () => {
           
           <Button 
             startIcon={<ContentCopy />} 
-            onClick={() => copyToClipboard(`Email: ${formData.email}\nPassword: ${tempPassword}`)}
+            onClick={() => copyToClipboard(` ${tempPassword}`)}
             variant="outlined"
             fullWidth
           >

@@ -1,4 +1,4 @@
-// backend/controllers/employeeController.js (corrected)
+// backend/controllers/employeeController.js (corrected & cleaned)
 const User = require('../models/User');
 const Employee = require('../models/Employee');
 const Shift = require('../models/Shift');
@@ -9,13 +9,14 @@ const { sendEmployeeCredentials } = require('../utils/emailService');
 // @desc    Get all employees for the admin's company
 // @route   GET /api/v1/employees
 // @access  Private (Admin/HR)
-exports.getEmployees = async (req, res, next) => {
+exports.getEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find({ 
+
       // Only get employees from the same company
+    const employees = await Employee.find({ 
       userId: { $in: await User.find({ company: req.user.company }).distinct('_id') }
     }).populate('userId', 'name email');
-
+    
     // Add shift count to each employee
     const employeesWithShifts = await Promise.all(employees.map(async (employee) => {
       const shiftCount = await Shift.countDocuments({ employeeId: employee._id });
@@ -28,7 +29,7 @@ exports.getEmployees = async (req, res, next) => {
     res.status(200).json({
       success: true,
       count: employeesWithShifts.length,
-      data: employeesWithShifts // Fixed: Added property name 'data'
+      data: employeesWithShifts   // ✅ fixed
     });
   } catch (err) {
     console.error('Get employees error:', err);
@@ -42,24 +43,13 @@ exports.getEmployees = async (req, res, next) => {
 // @desc    Create new employee with shifts and pay
 // @route   POST /api/v1/employees
 // @access  Private (Admin/HR)
-exports.createEmployee = async (req, res, next) => {
+exports.createEmployee = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   
   try {
-    const { 
-      name, 
-      email, 
-      phone, 
-      momoNumber, 
-      position, 
-      department,
-      salary,
-      payPerShift,
-      shifts // Array of shift objects
-    } = req.body;
+    const { name, email, phone, momoNumber, position, department, salary, payPerShift, shifts } = req.body;
 
-    // Validate required fields
     if (!name || !email || !phone || !momoNumber || !position || salary === undefined || payPerShift === undefined) {
       await session.abortTransaction();
       session.endSession();
@@ -69,7 +59,6 @@ exports.createEmployee = async (req, res, next) => {
       });
     }
 
-    // Check if employee email already exists
     const existingUser = await User.findOne({ email }).session(session);
     if (existingUser) {
       await session.abortTransaction();
@@ -80,27 +69,23 @@ exports.createEmployee = async (req, res, next) => {
       });
     }
 
-    // Generate temporary password
-    const tempPassword = crypto.randomBytes(10).toString('hex');
-    
-    // Create user account for employee
+    // Generate simple 6-character password
+    const tempPassword = crypto.randomBytes(4).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6);
+
     const user = new User({
       name,
       email,
-      password: tempPassword, // This will be hashed by the pre-save middleware
-      company: req.user.company, // Use admin's company
+      password: tempPassword,
+      company: req.user.company,
       role: 'employee',
       momoNumber,
-      position,
-      isFirstLogin: true
+      position
     });
-    
     await user.save({ session });
 
-    // Create employee record
     const employee = new Employee({
       userId: user._id,
-      employeeId: `EMP${Date.now()}`, // Simple employee ID generation
+      employeeId: `EMP${Date.now()}`,
       name,
       email,
       phone,
@@ -110,17 +95,11 @@ exports.createEmployee = async (req, res, next) => {
       salary,
       payPerShift
     });
-    
     await employee.save({ session });
 
-    // Create shifts if provided
     let createdShifts = [];
     if (shifts && Array.isArray(shifts) && shifts.length > 0) {
-      // Filter out any shifts with missing data
-      const validShifts = shifts.filter(shift => 
-        shift.day && shift.startTime && shift.endTime && shift.date
-      );
-      
+      const validShifts = shifts.filter(s => s.day && s.startTime && s.endTime && s.date);
       if (validShifts.length > 0) {
         const shiftDocs = validShifts.map(shift => ({
           employeeId: employee._id,
@@ -130,7 +109,6 @@ exports.createEmployee = async (req, res, next) => {
           endTime: shift.endTime,
           status: 'scheduled'
         }));
-        
         createdShifts = await Shift.insertMany(shiftDocs, { session });
       }
     }
@@ -138,18 +116,12 @@ exports.createEmployee = async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
-    // Send credentials to employee via email
-    const emailResult = await sendEmployeeCredentials(
-      email, 
-      name, 
-      tempPassword, 
-      req.user.company
-    );
+    const emailResult = await sendEmployeeCredentials(email, name, tempPassword, req.user.company);
 
     res.status(201).json({
       success: true,
       message: 'Employee account created successfully with shifts',
-      data: { // Fixed: Added property name 'data'
+      data: {   // ✅ fixed
         user: {
           id: user._id,
           name: user.name,
@@ -165,149 +137,96 @@ exports.createEmployee = async (req, res, next) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    
-    console.error('Create employee error:', err);
-    
-    // Handle validation errors
+    console.error('❌ Create employee error:', err);
+
     if (err.name === 'ValidationError') {
       const message = Object.values(err.errors).map(val => val.message);
-      return res.status(400).json({
-        success: false,
-        message: message.join(', ')
-      });
+      return res.status(400).json({ success: false, message: message.join(', ') });
     }
-    
-    // Handle duplicate key errors
     if (err.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email already registered'
-      });
+      return res.status(400).json({ success: false, message: 'Email already registered' });
     }
-    
-    res.status(500).json({
-      success: false,
-      message: 'Server error while creating employee: ' + err.message
-    });
+    res.status(500).json({ success: false, message: 'Server error while creating employee: ' + err.message });
   }
 };
 
 // @desc    Get single employee with shifts
 // @route   GET /api/v1/employees/:id
 // @access  Private (Admin/HR)
-exports.getEmployee = async (req, res, next) => {
+exports.getEmployee = async (req, res) => {
   try {
     const employee = await Employee.findById(req.params.id).populate('userId', 'name email');
 
     if (!employee) {
-      return res.status(404).json({
-        success: false,
-        message: 'Employee not found'
-      });
+      return res.status(404).json({ success: false, message: 'Employee not found' });
     }
 
-    // Check if employee belongs to admin's company
     const user = await User.findById(employee.userId);
     if (user.company !== req.user.company) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to access this employee'
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized to access this employee' });
     }
 
-    // Get employee shifts
     const shifts = await Shift.find({ employeeId: employee._id });
 
     res.status(200).json({
       success: true,
-      data: { // Fixed: Added property name 'data'
+      data: {   // ✅ fixed
         employee,
         shifts
       }
     });
   } catch (err) {
     console.error('Get employee error:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching employee'
-    });
+    res.status(500).json({ success: false, message: 'Server error while fetching employee' });
   }
 };
 
 // @desc    Update employee
 // @route   PUT /api/v1/employees/:id
 // @access  Private (Admin/HR)
-exports.updateEmployee = async (req, res, next) => {
+exports.updateEmployee = async (req, res) => {
   try {
     const employee = await Employee.findById(req.params.id);
 
     if (!employee) {
-      return res.status(404).json({
-        success: false,
-        message: 'Employee not found'
-      });
+      return res.status(404).json({ success: false, message: 'Employee not found' });
     }
 
-    // Check if employee belongs to admin's company
     const user = await User.findById(employee.userId);
     if (user.company !== req.user.company) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this employee'
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized to update this employee' });
     }
 
-    // Update employee record
-    const updatedEmployee = await Employee.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    );
+    const updatedEmployee = await Employee.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
 
-    // Also update user record if needed
     if (req.body.momoNumber || req.body.position) {
-      await User.findByIdAndUpdate(
-        employee.userId,
-        {
-          momoNumber: req.body.momoNumber,
-          position: req.body.position
-        },
-        {
-          runValidators: true
-        }
-      );
+      await User.findByIdAndUpdate(employee.userId, {
+        momoNumber: req.body.momoNumber,
+        position: req.body.position
+      }, { runValidators: true });
     }
 
     res.status(200).json({
       success: true,
-      data: updatedEmployee // Fixed: Added property name 'data'
+      data: updatedEmployee   // ✅ fixed
     });
   } catch (err) {
     console.error('Update employee error:', err);
-    
-    // Handle validation errors
     if (err.name === 'ValidationError') {
       const message = Object.values(err.errors).map(val => val.message);
-      return res.status(400).json({
-        success: false,
-        message: message.join(', ')
-      });
+      return res.status(400).json({ success: false, message: message.join(', ') });
     }
-    
-    res.status(500).json({
-      success: false,
-      message: 'Server error while updating employee'
-    });
+    res.status(500).json({ success: false, message: 'Server error while updating employee' });
   }
 };
 
 // @desc    Delete employee
 // @route   DELETE /api/v1/employees/:id
 // @access  Private (Admin/HR)
-exports.deleteEmployee = async (req, res, next) => {
+exports.deleteEmployee = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   
@@ -317,24 +236,16 @@ exports.deleteEmployee = async (req, res, next) => {
     if (!employee) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(404).json({
-        success: false,
-        message: 'Employee not found'
-      });
+      return res.status(404).json({ success: false, message: 'Employee not found' });
     }
 
-    // Check if employee belongs to admin's company
     const user = await User.findById(employee.userId).session(session);
     if (user.company !== req.user.company) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to delete this employee'
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this employee' });
     }
 
-    // Delete employee record, user account, and associated shifts
     await Employee.deleteOne({ _id: employee._id }).session(session);
     await User.deleteOne({ _id: employee.userId }).session(session);
     await Shift.deleteMany({ employeeId: employee._id }).session(session);
@@ -342,18 +253,11 @@ exports.deleteEmployee = async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({
-      success: true,
-      message: 'Employee deleted successfully'
-    });
+    res.status(200).json({ success: true, message: 'Employee deleted successfully' });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    
     console.error('Delete employee error:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while deleting employee'
-    });
+    res.status(500).json({ success: false, message: 'Server error while deleting employee' });
   }
 };
