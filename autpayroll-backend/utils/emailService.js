@@ -8,7 +8,7 @@ const createTransporter = () => {
     port: process.env.EMAIL_PORT || 587,
     secure: false, // true for 465, false for other ports
     auth: {
-      user: process.env.EMAIL_USER, // Your email
+      user: process.env.EMAIL_USER, // Your emfail
       pass: process.env.EMAIL_PASS  // Your email password or app password
     }
   });
