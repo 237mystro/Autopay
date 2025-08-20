@@ -170,11 +170,7 @@ const EmployeeDashboard = ({ toggleDarkMode, darkMode }) => {
                 <Typography variant="body2" color="text.secondary">
                     {user.email}
                 </Typography>
-              <Chip 
-                label={user.company} 
-                size="small" 
-                sx={{ mt: 1 }} 
-              />
+                Company:{user.company} 
             </Box>
             <MenuItem onClick={handleClose}>
             <AccountCircle sx={{ mr: 1 }} />Profile
