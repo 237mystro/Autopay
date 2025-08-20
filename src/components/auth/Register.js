@@ -48,7 +48,7 @@ const Register = () => {
       setLoading(true);
       
       // Make API call to backend
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://autopay-backend.onrender.com/api/v1'}/auth/register-business`, {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/register-business`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

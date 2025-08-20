@@ -42,11 +42,7 @@ const Login = () => {
       setLoading(true);
       
       // Use the API URL from environment variables
-      const apiUrl = `${process.env.REACT_APP_API_URL || 'https://autopay-backend.onrender.com/api/v1'}/auth/login`;
-      
-      console.log('Making request to:', apiUrl);
-      
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
