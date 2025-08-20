@@ -1,18 +1,7 @@
 // src/components/auth/Register.js
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Container, 
-  Typography, 
-  TextField, 
-  Button, 
-  Box, 
-  Paper, 
-  FormControlLabel, 
-  Checkbox, 
-  Alert,
-  CircularProgress
-} from '@mui/material';
+import { Container,  Typography,  TextField,  Button,  Box,  Paper,  FormControlLabel,  Checkbox,   Alert,  CircularProgress} from '@mui/material';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -59,7 +48,7 @@ const Register = () => {
       setLoading(true);
       
       // Make API call to backend
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/auth/register-business`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://autopay-backend.onrender.com/api/v1'}/auth/register-business`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

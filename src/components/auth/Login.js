@@ -36,38 +36,56 @@ const Login = () => {
       setError('Please enter a valid email address');
       return;
     }
-    
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
 
     try {
       setError('');
       setLoading(true);
       
-      // Make API call to backend
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/auth/login`, {
+      // Use the API URL from environment variables
+      const apiUrl = `${process.env.REACT_APP_API_URL || 'https://autopay-backend.onrender.com/api/v1'}/auth/login`;
+      
+      console.log('Making request to:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email,
-          password
+          email: email.trim(),
+          password: password.trim()
         })
       });
       
-      const data = await response.json();
-      console.log('Login response:', data); // Debug log
+      console.log('Response status:', response.status);
+      
+      // Check if response has content
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+      
+      // Handle empty response
+      if (!responseText) {
+        throw new Error('Empty response from server');
+      }
+      
+      // Try to parse JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        throw new Error('Invalid response from server');
+      }
+      
+      console.log('Parsed response:', data);
       
       if (data.success) {
         // Store token and user data
         localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('user', JSON.stringify(data.data.user));
         
         // Redirect based on user role
-        if (data.user.role === 'employee') {
+        if (data.data.user.role === 'employee') {
           navigate('/employee/dashboard');
         } else {
           navigate('/admin/dashboard');
@@ -77,7 +95,19 @@ const Login = () => {
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Network error. Please check your connection and try again.');
+      
+      // Handle different types of errors
+      if (err instanceof TypeError) {
+        if (err.message.includes('fetch') || err.message.includes('Failed to fetch')) {
+          setError('Cannot connect to server. Please make sure the backend is running.');
+        } else {
+          setError('Network error: ' + err.message);
+        }
+      } else if (err.message.includes('JSON')) {
+        setError('Invalid response from server. Please try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     }
     
     setLoading(false);
@@ -90,7 +120,11 @@ const Login = () => {
           Sign in to AutoPayroll
         </Typography>
         
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         
         <Box component="form" onSubmit={handleSubmit} noValidate>
           <TextField
@@ -104,8 +138,6 @@ const Login = () => {
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            error={!!error && !email}
-            helperText={!!error && !email ? 'Email is required' : ''}
           />
           <TextField
             margin="normal"
@@ -118,8 +150,6 @@ const Login = () => {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            error={!!error && !password}
-            helperText={!!error && !password ? 'Password is required' : ''}
           />
           <FormControlLabel
             control={
