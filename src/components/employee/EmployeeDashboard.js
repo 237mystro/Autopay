@@ -1,3 +1,4 @@
+// src/components/employee/EmployeeDashboard.js
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import {
@@ -18,7 +19,8 @@ import {
   Avatar,
   Menu,
   MenuItem,
-  Badge
+  Badge,
+  Chip
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -29,25 +31,32 @@ import {
   AccountCircle,
   Brightness4,
   Brightness7,
-  QrCodeScanner
+   QrCodeScanner,
+  ExitToApp,
+  Notifications
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
 
 const navItems = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/employee/dashboard' },
-  { text: 'Check-In', icon: <QrCodeScanner />, path: '/employee/checkin' },
+  { text: 'Check-In', icon: <Schedule />, path: '/employee/checkin' },
   { text: 'My Schedule', icon: <Schedule />, path: '/employee/schedule' },
   { text: 'My Payments', icon: <Payment />, path: '/employee/payments' },
   { text: 'Messaging', icon: <Chat />, path: '/employee/messaging' },
   { text: 'Profile', icon: <AccountCircle />, path: '/employee/profile' },
 ];
 
+
+
 const EmployeeDashboard = ({ toggleDarkMode, darkMode }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const location = useLocation();
 
+// Get user data from localStorage
+  const user = JSON.parse(localStorage.getItem('user')) || {};
+  
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
@@ -58,6 +67,13 @@ const EmployeeDashboard = ({ toggleDarkMode, darkMode }) => {
 
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+    handleClose();
   };
 
   const drawer = (
@@ -108,11 +124,17 @@ const EmployeeDashboard = ({ toggleDarkMode, darkMode }) => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Employee Dashboard
+            Employee at {user.company}
           </Typography>
           
           <IconButton color="inherit" onClick={toggleDarkMode}>
             {darkMode ? <Brightness7 /> : <Brightness4 />}
+          </IconButton>
+          
+          <IconButton color="inherit">
+            <Badge badgeContent={3} color="secondary">
+              <Notifications />
+            </Badge>
           </IconButton>
           
           <IconButton
@@ -123,7 +145,9 @@ const EmployeeDashboard = ({ toggleDarkMode, darkMode }) => {
             onClick={handleMenu}
             color="inherit"
           >
-            <Avatar sx={{ width: 32, height: 32 }}>E</Avatar>
+             <Avatar sx={{ width: 32, height: 32 }}>
+                {user.name ? user.name.charAt(0) : 'A'}
+             </Avatar>
           </IconButton>
           
           <Menu
@@ -141,13 +165,24 @@ const EmployeeDashboard = ({ toggleDarkMode, darkMode }) => {
             open={Boolean(anchorEl)}
             onClose={handleClose}
           >
-            <MenuItem onClick={handleClose}>Profile</MenuItem>
-            <MenuItem onClick={handleClose}>My account</MenuItem>
-            <MenuItem onClick={() => {
-              const { logout } = require('../../contexts/AuthContext').useAuth();
-              logout();
-              handleClose();
-            }}>Logout</MenuItem>
+            <Box sx={{ px: 2, py: 1 }}>
+                <Typography variant="subtitle1">{user.name}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                    {user.email}
+                </Typography>
+              <Chip 
+                label={user.company} 
+                size="small" 
+                sx={{ mt: 1 }} 
+              />
+            </Box>
+            <MenuItem onClick={handleClose}>
+            <AccountCircle sx={{ mr: 1 }} />Profile
+            </MenuItem>
+            <MenuItem onClick={handleClose}>My Account</MenuItem>
+            <MenuItem onClick={handleLogout}>
+              <ExitToApp sx={{ mr: 1 }} /> Logout
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>

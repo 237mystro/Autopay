@@ -19,6 +19,7 @@ import Schedule from './components/employee/Schedule';
 import Payments from './components/employee/Payments';
 import AttendanceDashboard from './components/admin/AttendanceDashboard';
 import ChangePassword from './components/employee/ChangePassword';
+import EmployeeDashboardOverview from './components/employee/DashboardOverview';
 import './App.css';
 
 const theme = createTheme({
@@ -58,10 +59,11 @@ function App() {
               <Route path="/onboarding" element={<EmployeeOnboarding />} />
               
               {/* Admin Routes */}
-              <Route path="/admin" element={<ProtectedRoute><AdminDashboard toggleDarkMode={toggleDarkMode} darkMode={darkMode} /></ProtectedRoute>}>
-                <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                <Route path="/admin" element={<ProtectedRoute><AdminDashboard toggleDarkMode={toggleDarkMode} darkMode={darkMode} /></ProtectedRoute>}>
+                <Route index element={<DashboardOverview />} />
                 <Route path="dashboard" element={<DashboardOverview />} />
                 <Route path="employees" element={<EmployeeManagement />} />
+                <Route path="dashboard" element={<DashboardOverview />} />
                 <Route path="scheduling" element={<ShiftScheduling />} />
                 <Route path="payroll" element={<PayrollProcessing />} />
                 <Route path="attendance" element={<AttendanceDashboard />} />
@@ -70,8 +72,8 @@ function App() {
               
               {/* Employee Routes */}
               <Route path="/employee" element={<ProtectedRoute><EmployeeDashboard toggleDarkMode={toggleDarkMode} darkMode={darkMode} /></ProtectedRoute>}>
-                <Route index element={<Navigate to="/employee/dashboard" replace />} />
-                <Route path="dashboard" element={<CheckIn />} />
+                <Route index element={<EmployeeDashboardOverview />} />
+                <Route path="dashboard" element={<EmployeeDashboardOverview />} />
                 <Route path="checkin" element={<CheckIn />} />
                 <Route path="schedule" element={<Schedule />} />
                 <Route path="payments" element={<Payments />} />

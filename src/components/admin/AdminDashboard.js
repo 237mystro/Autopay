@@ -1,44 +1,15 @@
+// src/components/admin/AdminDashboard.js (updated header section)
 import React, { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import {
-  AppBar,
-  Box,
-  CssBaseline,
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Toolbar,
-  Typography,
-  Switch,
-  Avatar,
-  Menu,
-  MenuItem,
-  Badge
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import {AppBar,Box,CssBaseline,Divider,Drawer,IconButton,List,ListItem,ListItemButton,ListItemIcon,ListItemText,Toolbar,Typography,Switch,Avatar,Menu,MenuItem,Badge,Chip
 } from '@mui/material';
+
 import {
-  Menu as MenuIcon,
-  Dashboard,
-  People,
-  Schedule,
-  Assignment,
-  Payment,
-  UploadFile,
-  Chat,
-  Settings,
-  Notifications,
-  AccountCircle,
-  Brightness4,
-  Brightness7
+  Menu as MenuIcon,Dashboard,People,Schedule,  Assignment,Payment,UploadFile,Chat,Settings,Notifications, AccountCircle, Brightness4,Brightness7,ExitToApp 
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
 
-// src/components/admin/AdminDashboard.js (update navItems)
 const navItems = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/admin/dashboard' },
   { text: 'Employees', icon: <People />, path: '/admin/employees' },
@@ -54,6 +25,10 @@ const AdminDashboard = ({ toggleDarkMode, darkMode }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Get user data from localStorage
+  const user = JSON.parse(localStorage.getItem('user')) || {};
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -67,13 +42,22 @@ const AdminDashboard = ({ toggleDarkMode, darkMode }) => {
     setAnchorEl(null);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+    handleClose();
+  };
+
   const drawer = (
     <div>
       <Toolbar sx={{ bgcolor: 'primary.main', color: 'white' }}>
-        <Typography variant="h6" noWrap component="div">
+        <Typography variant="h8" noWrap component="div">
           AutoPayroll
+         
         </Typography>
-      </Toolbar>
+       
+      </Toolbar> 
       <Divider />
       <List>
         {navItems.map((item) => (
@@ -115,7 +99,8 @@ const AdminDashboard = ({ toggleDarkMode, darkMode }) => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Admin Dashboard
+            Admin Dashboard for {user.company} 
+                    
           </Typography>
           
           <IconButton color="inherit" onClick={toggleDarkMode}>
@@ -136,7 +121,9 @@ const AdminDashboard = ({ toggleDarkMode, darkMode }) => {
             onClick={handleMenu}
             color="inherit"
           >
-            <Avatar sx={{ width: 32, height: 32 }}>A</Avatar>
+            <Avatar sx={{ width: 32, height: 32 }}>
+              {user.name ? user.name.charAt(0) : 'A'}
+            </Avatar>
           </IconButton>
           
           <Menu
@@ -154,17 +141,32 @@ const AdminDashboard = ({ toggleDarkMode, darkMode }) => {
             open={Boolean(anchorEl)}
             onClose={handleClose}
           >
-            <MenuItem onClick={handleClose}>Profile</MenuItem>
-            <MenuItem onClick={handleClose}>My account</MenuItem>
-            <MenuItem onClick={() => {
-              const { logout } = require('../../contexts/AuthContext').useAuth();
-              logout();
-              handleClose();
-            }}>Logout</MenuItem>
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="subtitle1">{user.name}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {user.email}
+              </Typography>
+              <Chip 
+                label={user.company} 
+                size="small" 
+                sx={{ mt: 1 }} 
+              />
+            </Box>
+            <Divider />
+            <MenuItem onClick={handleClose}>
+              <AccountCircle sx={{ mr: 1 }} /> Profile
+            </MenuItem>
+            <MenuItem onClick={handleClose}>
+              <Settings sx={{ mr: 1 }} /> Settings
+            </MenuItem>
+            <MenuItem onClick={handleLogout}>
+              <ExitToApp sx={{ mr: 1 }} /> Logout
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
       
+      {/* Rest of the component remains the same */}
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
