@@ -78,10 +78,10 @@ const Login = () => {
       if (data.success) {
         // Store token and user data
         localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.data.user));
+        localStorage.setItem('user', JSON.stringify(data.user));
         
         // Redirect based on user role
-        if (data.data.user.role === 'employee') {
+        if (data.user.role === 'employee') {
           navigate('/employee/dashboard');
         } else {
           navigate('/admin/dashboard');
