@@ -1,35 +1,60 @@
-// src/components/employee/QRScanner.js (corrected version)
+// src/components/employee/QRScanner.js
 import React, { useState, useRef } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  Typography, 
-  Button, 
-  Box, 
-  Alert, 
+import { useNavigate } from 'react-router-dom';
+import Webcam from 'react-webcam';
+import {
+  Box,
+  Button,
+  Typography,
+  Card,
+  CardContent,
+  Alert,
   CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  LinearProgress
+  Chip,
+  Avatar,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  Divider
 } from '@mui/material';
-import { QrCodeScanner, LocationOn, Warning, CheckCircle, ErrorOutline } from '@mui/icons-material';
-import { QrReader } from 'react-qr-reader';
+import {
+  QrCodeScanner,
+  LocationOn,
+  Warning,
+  CheckCircle,
+  ErrorOutline,
+  Schedule,
+  AccessTime,
+  Person,
+  Close
+} from '@mui/icons-material';
 
 const QRScanner = () => {
   const [scanning, setScanning] = useState(false);
   const [location, setLocation] = useState(null);
-  const [locationStatus, setLocationStatus] = useState('pending'); // 'pending', 'verifying', 'verified', 'failed'
+  const [locationStatus, setLocationStatus] = useState('pending'); // pending, verifying, verified, failed
   const [locationError, setLocationError] = useState('');
-  const [qrData, setQrData] = useState('');
-  const [checkInStatus, setCheckInStatus] = useState('idle'); // 'idle', 'processing', 'success', 'error'
+  const [qrData, setQrData] = useState(null);
+  const [checkInStatus, setCheckInStatus] = useState('idle'); // idle, processing, success, error
   const [verificationResult, setVerificationResult] = useState(null);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [shiftInfo, setShiftInfo] = useState(null);
-  const scannerRef = useRef(null);
+  const [openConfirmation, setOpenConfirmation] = useState(false);
+  const navigate = useNavigate();
+  const webcamRef = useRef(null);
 
-  // ACTUALLY GET USER'S LOCATION FROM THEIR DEVICE
+  // Office location coordinates (Buea - 47WP+W6J)
+  const OFFICE_LOCATION = {
+    latitude: 4.1025,
+    longitude: 9.3908
+  };
+  
+  const MAX_DISTANCE = 20; // 20 meters
+
+  // Get user's current location
   const getUserLocation = () => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -39,17 +64,18 @@ const QRScanner = () => {
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          resolve({
+          const userLocation = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy
-          });
+          };
+          resolve(userLocation);
         },
         (error) => {
           let errorMessage = '';
           switch (error.code) {
             case error.PERMISSION_DENIED:
-              errorMessage = 'Location access denied. Please enable location services in your browser settings.';
+              errorMessage = 'Location access denied. Please enable location services.';
               break;
             case error.POSITION_UNAVAILABLE:
               errorMessage = 'Location information is unavailable.';
@@ -72,7 +98,7 @@ const QRScanner = () => {
     });
   };
 
-  // Calculate distance between two coordinates
+  // Calculate distance between two coordinates (Haversine formula)
   const calculateDistance = (coords1, coords2) => {
     const toRad = (value) => (value * Math.PI) / 180;
     
@@ -90,24 +116,21 @@ const QRScanner = () => {
     return R * c; // Distance in meters
   };
 
-  // Verify if user is within allowed radius of Buea office
-  const verifyLocation = (userCoords) => {
-    // Buea office coordinates (47WP+W6J)
-    const BUEA_COORDINATES = {
-      latitude: 4.1025,
-      longitude: 9.3908
-    };
-    
-    const VERIFICATION_RADIUS = 20; // 20 meters
-    
-    const distance = calculateDistance(userCoords, BUEA_COORDINATES);
-    
-    return {
-      isWithinRadius: distance <= VERIFICATION_RADIUS,
-      distance: distance,
-      maxDistance: VERIFICATION_RADIUS,
-      allowed: distance <= VERIFICATION_RADIUS
-    };
+  // Verify if user is within allowed radius of office location
+  const verifyLocation = async (userCoords) => {
+    try {
+      const distance = calculateDistance(userCoords, OFFICE_LOCATION);
+      
+      return {
+        isWithinRadius: distance <= MAX_DISTANCE,
+        distance: distance,
+        maxDistance: MAX_DISTANCE,
+        allowed: distance <= MAX_DISTANCE
+      };
+    } catch (error) {
+      console.error('Location verification error:', error);
+      throw new Error('Failed to verify location');
+    }
   };
 
   // Format distance for display
@@ -121,78 +144,50 @@ const QRScanner = () => {
     }
   };
 
-  // ACTUALLY VERIFY USER LOCATION
-  const verifyUserLocation = async () => {
+  // Start scanning process
+  const startScanning = async () => {
     try {
-      setLocationStatus('verifying');
+      setScanning(true);
+      setLocation(null);
+      setLocationStatus('pending');
       setLocationError('');
+      setQrData(null);
+      setCheckInStatus('idle');
+      setOpenConfirmation(false);
       
-      // THIS WILL PROMPT USER FOR LOCATION PERMISSION
+      // Get user location
+      setLocationStatus('verifying');
       const userLocation = await getUserLocation();
       setLocation(userLocation);
       
-      // Verify location against Buea coordinates
-      const result = verifyLocation(userLocation);
+      // Verify location against office coordinates
+      const result = await verifyLocation(userLocation);
       setVerificationResult(result);
       
       if (result.allowed) {
         setLocationStatus('verified');
       } else {
         setLocationStatus('failed');
-        setLocationError(`You are ${formatDistance(result.distance)} away from the office. Maximum allowed distance is 20 meters.`);
+        setLocationError(`You are ${formatDistance(result.distance)} away from the office. Maximum allowed distance is ${MAX_DISTANCE} meters.`);
+        setScanning(false);
       }
-      
-      return result.allowed;
     } catch (error) {
       setLocationStatus('failed');
       setLocationError(error.message);
-      return false;
+      setScanning(false);
     }
   };
 
-  // Handle QR scan - THIS WILL ACTUALLY USE THE CAMERA
-  const handleScan = (result, error) => {
-    if (error) {
-      console.info(error);
-      return;
-    }
-    
-    if (result) {
+  // Handle QR scan result
+  const handleScan = async (data) => {
+    if (data) {
       try {
-        const data = result?.text;
-        if (data) {
-          setQrData(data);
-          setScanning(false);
-          
-          // Parse QR data to get shift info
-          try {
-            const parsedData = JSON.parse(data);
-            setShiftInfo({
-              shiftId: parsedData.shiftId || 'SHIFT-001',
-              employee: 'Current Employee', // Would come from auth context
-              position: 'Employee', // Would come from auth context
-              date: new Date().toLocaleDateString(),
-              startTime: '08:00 AM', // Would come from backend
-              endTime: '04:00 PM', // Would come from backend
-              location: 'Buea Office (47WP+W6J)'
-            });
-          } catch (parseError) {
-            // If not JSON, use as plain text
-            setShiftInfo({
-              shiftId: 'DEMO-SHIFT',
-              employee: 'Current Employee',
-              position: 'Employee',
-              date: new Date().toLocaleDateString(),
-              startTime: '08:00 AM',
-              endTime: '04:00 PM',
-              location: 'Buea Office (47WP+W6J)'
-            });
-          }
-          
-          setOpenDialog(true);
-        }
-      } catch (err) {
-        console.error('QR Parse Error:', err);
+        const parsedData = JSON.parse(data);
+        setQrData(parsedData);
+        setScanning(false);
+        setOpenConfirmation(true);
+      } catch (parseError) {
+        console.error('QR Parse Error:', parseError);
         setCheckInStatus('error');
         setLocationError('Invalid QR code format');
         setScanning(false);
@@ -205,30 +200,10 @@ const QRScanner = () => {
     console.error('QR Scan Error:', err);
     setScanning(false);
     setCheckInStatus('error');
-    setLocationError('Camera error. Please make sure you\'ve granted camera permission.');
+    setLocationError('Camera error. Please try again.');
   };
 
-  // Start scanning process - THIS WILL TRIGGER LOCATION AND CAMERA ACCESS
-  const startScanning = async () => {
-    setScanning(true);
-    setQrData('');
-    setOpenDialog(false);
-    setCheckInStatus('idle');
-    setLocation(null);
-    setLocationStatus('pending');
-    setLocationError('');
-    setShiftInfo(null);
-    
-    // FIRST VERIFY LOCATION (THIS WILL PROMPT FOR LOCATION PERMISSION)
-    const isLocationValid = await verifyUserLocation();
-    
-    if (!isLocationValid) {
-      setScanning(false);
-    }
-    // IF LOCATION IS VALID, CAMERA WILL BE ACTIVATED AUTOMATICALLY
-  };
-
-  // Confirm check-in - THIS WILL SEND DATA TO BACKEND
+  // Confirm and process check-in
   const confirmCheckIn = async () => {
     if (locationStatus !== 'verified') {
       setLocationError('Location verification required');
@@ -243,48 +218,66 @@ const QRScanner = () => {
     try {
       setCheckInStatus('processing');
       
-      // SIMULATE API CALL (replace with actual backend call)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
       
-      // Simulate success (in real app, this would come from backend)
-      setCheckInStatus('success');
-      setOpenDialog(false);
+      // Send check-in data to backend
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/attendance/checkin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          qrData: JSON.stringify(qrData),
+          userLocation: location
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setCheckInStatus('success');
+        setOpenConfirmation(false);
+        
+        // Redirect after success
+        setTimeout(() => {
+          navigate('/employee/dashboard');
+        }, 2000);
+      } else {
+        throw new Error(data.message || 'Check-in failed');
+      }
     } catch (error) {
-      setCheckInStatus('error');
-      setLocationError('Check-in failed. Please try again.');
       console.error('Check-in error:', error);
+      setCheckInStatus('error');
+      setLocationError(error.message || 'Check-in failed. Please try again.');
     }
   };
 
-  // Handle raise concern
-  const handleRaiseConcern = () => {
-    alert('Concern raised successfully. HR will contact you shortly.');
+  // Cancel scanning
+  const cancelScanning = () => {
+    setScanning(false);
+    setLocation(null);
+    setLocationStatus('pending');
+    setLocationError('');
+    setQrData(null);
+    setCheckInStatus('idle');
+    setOpenConfirmation(false);
   };
 
   // Reset scanner
   const resetScanner = () => {
-    setScanning(false);
-    setCheckInStatus('idle');
-    setLocation(null);
-    setLocationStatus('pending');
-    setLocationError('');
-    setQrData('');
-    setOpenDialog(false);
-    setShiftInfo(null);
+    cancelScanning();
   };
 
   return (
-    <div>
+    <Box sx={{ p: 2 }}>
       <Typography variant="h4" gutterBottom>
         QR Code Check-In
       </Typography>
       
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Scan QR Code to Check In
-          </Typography>
-          
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <LocationOn 
               color={locationStatus === 'verified' ? "success" : 
@@ -294,19 +287,19 @@ const QRScanner = () => {
             />
             <Box>
               <Typography 
-                variant="body2" 
+                variant="body1" 
                 color={locationStatus === 'verified' ? "success.main" : 
                        locationStatus === 'failed' ? "error.main" : 
-                       locationStatus === 'verifying' ? "warning.main" : "text.secondary"}
+                       locationStatus === 'verifying' ? "warning.main" : "text.primary"}
               >
-                {locationStatus === 'pending' && "Click below to verify your location"}
-                {locationStatus === 'verifying' && "Requesting location access..."}
+                {locationStatus === 'pending' && "Location verification required"}
+                {locationStatus === 'verifying' && "Verifying your location..."}
                 {locationStatus === 'verified' && `Location verified (${location ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : 'Unknown'})`}
                 {locationStatus === 'failed' && "Location verification failed"}
               </Typography>
               {location && (
                 <Typography variant="caption" color="text.secondary">
-                  Accuracy: ±{location.accuracy ? `${Math.round(location.accuracy)}m` : 'Unknown'}
+                  Accuracy: ±{Math.round(location.accuracy)} meters
                 </Typography>
               )}
             </Box>
@@ -314,22 +307,16 @@ const QRScanner = () => {
           
           {locationStatus === 'verifying' && (
             <Box sx={{ width: '100%', mb: 2 }}>
-              <LinearProgress />
-              <Typography variant="caption" display="block" align="center" sx={{ mt: 1 }}>
-                Please allow location access when prompted by your browser
-              </Typography>
+              <CircularProgress size={24} />
             </Box>
           )}
           
           {(locationStatus === 'failed' || locationError) && (
-            <Alert 
-              severity={locationStatus === 'failed' ? "warning" : "error"} 
-              sx={{ mb: 2 }}
-            >
+            <Alert severity={locationStatus === 'failed' ? "warning" : "error"} sx={{ mb: 2 }}>
               {locationError || "Location verification failed"}
               <Button 
                 size="small" 
-                onClick={verifyUserLocation} 
+                onClick={startScanning} 
                 sx={{ ml: 1 }}
               >
                 Try Again
@@ -340,194 +327,173 @@ const QRScanner = () => {
           {verificationResult && locationStatus === 'failed' && (
             <Alert severity="info" sx={{ mb: 2 }}>
               <Typography variant="body2">
-                <strong>Office Location:</strong> 47WP+W6J, Buea<br />
+                <strong>Office Location:</strong> Buea (47WP+W6J)<br />
                 <strong>Your Distance:</strong> {formatDistance(verificationResult.distance)}<br />
-                <strong>Maximum Allowed:</strong> 20 meters
+                <strong>Maximum Allowed:</strong> {verificationResult.maxDistance} meters
               </Typography>
             </Alert>
           )}
           
           <Box sx={{ textAlign: 'center', my: 3 }}>
-            {scanning ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {!scanning ? (
+              <Button 
+                variant="contained" 
+                size="large" 
+                startIcon={<QrCodeScanner />} 
+                onClick={startScanning}
+                disabled={locationStatus === 'verifying'}
+                sx={{ py: 1.5, px: 4 }}
+              >
+                {locationStatus === 'verified' ? 'Scan QR Code' : 'Verify Location & Scan'}
+              </Button>
+            ) : (
+              <Box>
                 <Box sx={{ 
-                  width: 300, 
+                  width: '100%', 
                   height: 300, 
-                  border: '3px dashed #1976d2', 
-                  borderRadius: 2,
-                  mb: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  bgcolor: 'rgba(25, 118, 210, 0.05)',
-                  overflow: 'hidden'
+                  border: '2px dashed #1976d2', 
+                  borderRadius: 2, 
+                  mb: 2, 
+                  overflow: 'hidden',
+                  position: 'relative'
                 }}>
-                  <QrReader
-                    onResult={handleScan}
-                    onError={handleError}
-                    constraints={{ facingMode: 'environment' }}
-                    containerStyle={{ width: '100%' }}
+                  <Webcam
+                    audio={false}
+                    ref={webcamRef}
+                    screenshotFormat="image/jpeg"
+                    videoConstraints={{ facingMode: "environment" }}
+                    onUserMediaError={handleError}
+                    style={{ width: '100%', height: '100%' }}
                   />
+                  <Box sx={{ 
+                    position: 'absolute', 
+                    top: 0, 
+                    left: 0, 
+                    right: 0, 
+                    bottom: 0, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    pointerEvents: 'none'
+                  }}>
+                    <Box sx={{ 
+                      width: 200, 
+                      height: 200, 
+                      border: '3px solid rgba(255, 255, 255, 0.8)',
+                      borderRadius: 2
+                    }} />
+                  </Box>
                 </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Point your camera at the QR code
                 </Typography>
-                <Typography variant="caption" display="block" sx={{ mb: 2 }}>
-                  Make sure camera permission is granted
-                </Typography>
                 <Button 
                   variant="outlined" 
-                  onClick={resetScanner}
+                  startIcon={<Close />}
+                  onClick={cancelScanning}
                 >
                   Cancel
                 </Button>
               </Box>
-            ) : checkInStatus === 'success' ? (
-              <Box>
-                <CheckCircle sx={{ fontSize: 60, color: 'success.main', mb: 2 }} />
-                <Typography variant="h5" color="success.main" sx={{ mb: 1 }}>
-                  Check-In Successful!
-                </Typography>
-                <Typography variant="body1" sx={{ mb: 2 }}>
-                  Welcome to work! Checked in at {new Date().toLocaleTimeString()}
-                </Typography>
-                <Button 
-                  variant="outlined" 
-                  onClick={resetScanner}
-                >
-                  Check In Again
-                </Button>
-              </Box>
-            ) : checkInStatus === 'processing' ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <CircularProgress size={60} sx={{ mb: 2 }} />
-                <Typography>Processing check-in...</Typography>
-              </Box>
-            ) : checkInStatus === 'error' ? (
-              <Box>
-                <ErrorOutline sx={{ fontSize: 60, color: 'error.main', mb: 2 }} />
-                <Typography variant="h5" color="error.main" sx={{ mb: 1 }}>
-                  Check-In Failed
-                </Typography>
-                <Typography variant="body1" sx={{ mb: 2 }}>
-                  {locationError || 'Please try again or raise a concern'}
-                </Typography>
-                <Box>
-                  <Button 
-                    variant="contained" 
-                    onClick={resetScanner}
-                    sx={{ mr: 1 }}
-                  >
-                    Try Again
-                  </Button>
-                  <Button 
-                    variant="outlined" 
-                    color="warning" 
-                    onClick={handleRaiseConcern}
-                  >
-                    Raise Concern
-                  </Button>
-                </Box>
-              </Box>
-            ) : (
-              <Box>
-                <Button 
-                  variant="contained" 
-                  size="large" 
-                  startIcon={<QrCodeScanner />}
-                  onClick={startScanning}
-                  disabled={locationStatus === 'verifying'}
-                  sx={{ 
-                    py: 1.5, 
-                    px: 4,
-                    mb: 2,
-                    bgcolor: locationStatus === 'verified' ? 'success.main' : 'primary.main',
-                    '&:hover': {
-                      bgcolor: locationStatus === 'verified' ? 'success.dark' : 'primary.dark'
-                    }
-                  }}
-                >
-                  {locationStatus === 'verified' ? 'Location Verified - Start Scanning' : 'Verify Location & Scan QR'}
-                </Button>
-                
-                {locationStatus === 'verified' && (
-                  <Alert severity="success">
-                    <Typography variant="body2">
-                      You are within 20 meters of the office. 
-                      Ready to scan QR code for check-in.
-                    </Typography>
-                  </Alert>
-                )}
-                
-                <Alert severity="info">
-                  <Typography variant="body2">
-                    <strong>Note:</strong> This will request permission to access your location and camera.
-                  </Typography>
-                </Alert>
-              </Box>
             )}
-          </Box>
-          
-          <Box sx={{ textAlign: 'center' }}>
-            <Button 
-              variant="outlined" 
-              color="warning" 
-              startIcon={<Warning />}
-              onClick={handleRaiseConcern}
-            >
-              Raise Concern
-            </Button>
           </Box>
         </CardContent>
       </Card>
       
-      {/* Check-In Confirmation Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+      {/* Check-In Success/Error Messages */}
+      {checkInStatus === 'success' && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          <Typography variant="h6">Check-In Successful!</Typography>
+          <Typography>
+            You have been successfully checked in at {new Date().toLocaleTimeString()}.
+          </Typography>
+        </Alert>
+      )}
+      
+      {checkInStatus === 'error' && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <Typography variant="h6">Check-In Failed</Typography>
+          <Typography>
+            {locationError || 'Please try again or contact your administrator.'}
+          </Typography>
+        </Alert>
+      )}
+      
+      {/* Confirmation Dialog */}
+      <Dialog open={openConfirmation} onClose={cancelScanning} maxWidth="sm" fullWidth>
         <DialogTitle>Confirm Check-In</DialogTitle>
         <DialogContent>
-          <Box sx={{ textAlign: 'center', py: 2 }}>
-            <QrCodeScanner sx={{ fontSize: 80, color: 'primary.main', mb: 2 }} />
-            <Typography variant="h6" gutterBottom>
-              Confirm Attendance
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-              You are checking in at the Buea office location
-            </Typography>
-            
-            {shiftInfo && (
-              <Box sx={{ textAlign: 'left', mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Shift Details:
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Employee:</strong> {shiftInfo.employee}<br />
-                  <strong>Position:</strong> {shiftInfo.position}<br />
-                  <strong>Date:</strong> {shiftInfo.date}<br />
-                  <strong>Time:</strong> {shiftInfo.startTime} - {shiftInfo.endTime}<br />
-                  <strong>Location:</strong> {shiftInfo.location}
+          {qrData && (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Shift Details
+              </Typography>
+              
+              <List>
+                <ListItem>
+                  <ListItemAvatar>
+                    <Avatar>
+                      <Person />
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText 
+                    primary="Employee" 
+                    secondary={qrData.employeeName || 'Current Employee'} 
+                  />
+                </ListItem>
+                
+                <ListItem>
+                  <ListItemAvatar>
+                    <Avatar>
+                      <Schedule />
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText 
+                    primary="Date" 
+                    secondary={qrData.date ? new Date(qrData.date).toLocaleDateString() : 'Unknown Date'} 
+                  />
+                </ListItem>
+                
+                <ListItem>
+                  <ListItemAvatar>
+                    <Avatar>
+                      <AccessTime />
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText 
+                    primary="Time" 
+                    secondary={`${qrData.startTime || '00:00'} - ${qrData.endTime || '00:00'}`} 
+                  />
+                </ListItem>
+              </List>
+              
+              <Divider sx={{ my: 2 }} />
+              
+              <Typography variant="h6" gutterBottom>
+                Location Verification
+              </Typography>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <CheckCircle color="success" sx={{ mr: 1 }} />
+                <Typography>
+                  Your location has been verified within the allowed radius
                 </Typography>
               </Box>
-            )}
-            
-            {location && (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                <Typography variant="body2">
-                  <strong>Your Location:</strong> {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}<br />
-                  <strong>Accuracy:</strong> ±{Math.round(location.accuracy)} meters<br />
-                  <strong>Status:</strong> Verified
-                </Typography>
-              </Alert>
-            )}
-            
-            <Alert severity="success">
-              <Typography variant="body2">
-                You are within the allowed 20 meter radius.
-              </Typography>
-            </Alert>
-          </Box>
+              
+              {location && (
+                <Alert severity="info">
+                  <Typography variant="body2">
+                    <strong>Your Location:</strong> {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}<br />
+                    <strong>Accuracy:</strong> ±{Math.round(location.accuracy)} meters<br />
+                    <strong>Status:</strong> Verified
+                  </Typography>
+                </Alert>
+              )}
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={cancelScanning}>Cancel</Button>
           <Button 
             onClick={confirmCheckIn} 
             variant="contained" 
@@ -538,7 +504,7 @@ const QRScanner = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 };
 

@@ -1,9 +1,10 @@
-// src/components/admin/AttendanceDashboard.js
+// src/components/admin/AttendanceDashboard.js (updated)
 import React, { useState, useEffect } from 'react';
 import {
+  Box,
+  Typography,
   Card,
   CardContent,
-  Typography,
   Table,
   TableBody,
   TableCell,
@@ -11,19 +12,17 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Box,
   Chip,
   CircularProgress,
-  Alert,
-  Button,
-  TextField
+  Alert
 } from '@mui/material';
-import { 
-  CheckCircle, 
-  AccessTime, 
-  Cancel, 
-  EventAvailable,
-  EventBusy
+import {
+  People,
+  Schedule,
+  AccessTime,
+  CheckCircle,
+  Warning,
+  Cancel
 } from '@mui/icons-material';
 
 const AttendanceDashboard = () => {
@@ -31,63 +30,44 @@ const AttendanceDashboard = () => {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Fetch attendance data
-  const fetchAttendanceData = async (date) => {
+  const fetchAttendanceData = async () => {
     setLoading(true);
     setError('');
     
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/attendance?date=${date}`, {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/attendance/admin-dashboard`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
-      const result = await response.json();
+      const data = await response.json();
       
-      if (result.success) {
-        setAttendanceData(result.data);
+      if (data.success) {
+        setAttendanceData(data.data.attendance);
+        setSummary({
+          totalEmployees: data.data.totalEmployees,
+          present: data.data.present,
+          late: data.data.late,
+          absent: data.data.absent
+        });
       } else {
-        setError(result.message);
+        setError(data.message);
       }
     } catch (err) {
       setError('Failed to fetch attendance data');
+      console.error('Fetch attendance error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch attendance summary
-  const fetchAttendanceSummary = async () => {
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/attendance/summary`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        setSummary(result.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch summary:', err);
-    }
-  };
-
-  // Handle date change
-  const handleDateChange = (event) => {
-    setSelectedDate(event.target.value);
-    fetchAttendanceData(event.target.value);
-  };
-
   useEffect(() => {
-    fetchAttendanceData(selectedDate);
-    fetchAttendanceSummary();
-  }, [selectedDate]);
+    fetchAttendanceData();
+  }, []);
 
   // Format time for display
   const formatTime = (dateString) => {
@@ -109,27 +89,38 @@ const AttendanceDashboard = () => {
     }
   };
 
-  return (
-    <div>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Attendance Dashboard</Typography>
-        <TextField
-          type="date"
-          value={selectedDate}
-          onChange={handleDateChange}
-          InputLabelProps={{
-            shrink: true,
-          }}
-        />
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <CircularProgress />
       </Box>
+    );
+  }
 
-      {/* Summary Cards */}
+  if (error) {
+    return <Alert severity="error">{error}</Alert>;
+  }
+
+  return (
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h4" gutterBottom>
+        Attendance Dashboard
+      </Typography>
+      
       {summary && (
         <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
           <Card sx={{ minWidth: 150, flexGrow: 1 }}>
             <CardContent sx={{ textAlign: 'center' }}>
-              <EventAvailable sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
-              <Typography variant="h4">{summary.present + summary.late}</Typography>
+              <People sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+              <Typography variant="h4">{summary.totalEmployees}</Typography>
+              <Typography variant="body2" color="text.secondary">Total Employees</Typography>
+            </CardContent>
+          </Card>
+          
+          <Card sx={{ minWidth: 150, flexGrow: 1 }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <CheckCircle sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
+              <Typography variant="h4">{summary.present}</Typography>
               <Typography variant="body2" color="text.secondary">Present</Typography>
             </CardContent>
           </Card>
@@ -144,85 +135,51 @@ const AttendanceDashboard = () => {
           
           <Card sx={{ minWidth: 150, flexGrow: 1 }}>
             <CardContent sx={{ textAlign: 'center' }}>
-              <EventBusy sx={{ fontSize: 40, color: 'error.main', mb: 1 }} />
+              <Cancel sx={{ fontSize: 40, color: 'error.main', mb: 1 }} />
               <Typography variant="h4">{summary.absent}</Typography>
               <Typography variant="body2" color="text.secondary">Absent</Typography>
             </CardContent>
           </Card>
-          
-          <Card sx={{ minWidth: 150, flexGrow: 1 }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4">{summary.attendanceRate}%</Typography>
-              <Typography variant="body2" color="text.secondary">Attendance Rate</Typography>
-            </CardContent>
-          </Card>
         </Box>
       )}
-
-      {/* Attendance Table */}
+      
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Attendance for {new Date(selectedDate).toLocaleDateString()}
+            Today's Attendance
           </Typography>
           
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Employee</TableCell>
-                    <TableCell>Position</TableCell>
-                    <TableCell>Shift Time</TableCell>
-                    <TableCell>Check-In</TableCell>
-                    <TableCell>Check-Out</TableCell>
-                    <TableCell>Status</TableCell>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Employee</TableCell>
+                  <TableCell>Position</TableCell>
+                  <TableCell>Check-In Time</TableCell>
+                  <TableCell>Status</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {attendanceData.map((record) => (
+                  <TableRow key={record._id}>
+                    <TableCell>{record.employeeId?.name || 'Unknown'}</TableCell>
+                    <TableCell>{record.employeeId?.position || 'Unknown'}</TableCell>
+                    <TableCell>
+                      {record.checkInTime 
+                        ? new Date(record.checkInTime).toLocaleTimeString() 
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {getStatusChip(record.status)}
+                    </TableCell>
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {attendanceData.map((record) => (
-                    <TableRow 
-                      key={record.employeeId} 
-                      sx={{ 
-                        '&:last-child td, &:last-child th': { border: 0 },
-                        bgcolor: record.status === 'absent' ? 'error.light' : 'inherit'
-                      }}
-                    >
-                      <TableCell component="th" scope="row">
-                        {record.name}
-                      </TableCell>
-                      <TableCell>{record.position}</TableCell>
-                      <TableCell>
-                        {record.shiftStart} - {record.shiftEnd}
-                      </TableCell>
-                      <TableCell>
-                        {formatTime(record.checkInTime)}
-                      </TableCell>
-                      <TableCell>
-                        {formatTime(record.checkOutTime)}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusChip(record.status)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </CardContent>
       </Card>
-    </div>
+    </Box>
   );
 };
 
