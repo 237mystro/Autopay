@@ -33,6 +33,7 @@ import {
   Brightness7,
    QrCodeScanner,
   ExitToApp,
+  settings,
   Notifications
 } from '@mui/icons-material';
 
@@ -45,6 +46,8 @@ const navItems = [
   { text: 'My Payments', icon: <Payment />, path: '/employee/payments' },
   { text: 'Messaging', icon: <Chat />, path: '/employee/messaging' },
   { text: 'Profile', icon: <AccountCircle />, path: '/employee/profile' },
+  { text: 'Settings', icon: <Settings />, path: '/employee/settings' },
+
 ];
 
 

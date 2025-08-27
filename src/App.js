@@ -21,6 +21,8 @@ import AttendanceDashboard from './components/admin/AttendanceDashboard';
 import ChangePassword from './components/employee/ChangePassword';
 import EmployeeDashboardOverview from './components/employee/DashboardOverview';
 import QRScanner from './components/employee/QRScanner';
+import Settings from './components/settings/Settings';
+import Profile from './components/profile/Profile';
 import './App.css';
 
 const theme = createTheme({
@@ -66,6 +68,8 @@ function App() {
                 <Route path="dashboard" element={<DashboardOverview />} />
                 <Route path="scheduling" element={<ShiftScheduling />} />
                 <Route path="payroll" element={<PayrollProcessing />} />
+                <Route path="/admin/settings" element={<Settings />} />
+                <Route path="/admin/profile" element={<Profile />} />
                 <Route path="attendance" element={<AttendanceDashboard />} />
               <Route path="employee-onboarding" element={<ProtectedRoute><AdminDashboard><EmployeeOnboarding /></AdminDashboard></ProtectedRoute>} />
               </Route>
@@ -78,6 +82,9 @@ function App() {
                 <Route path="schedule" element={<Schedule />} />
                 <Route path="payments" element={<Payments />} />
                 <Route path="/employee/change-password" element={<ProtectedRoute><EmployeeDashboard><ChangePassword /></EmployeeDashboard></ProtectedRoute>} />
+                <Route path="/employee/profile" element={<Profile />} />
+                <Route path="/employee/settings" element={<Settings />} />
+
               </Route>
             </Routes>
           </div>
