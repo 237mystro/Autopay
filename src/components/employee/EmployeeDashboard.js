@@ -33,7 +33,7 @@ import {
   Brightness7,
    QrCodeScanner,
   ExitToApp,
-  settings,
+  Settings,
   Notifications
 } from '@mui/icons-material';
 
