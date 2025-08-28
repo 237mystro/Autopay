@@ -18,6 +18,7 @@ const navItems = [
   { text: 'Payroll', icon: <Payment />, path: '/admin/payroll' },
   { text: 'Documents', icon: <UploadFile />, path: '/admin/documents' },
   { text: 'Messaging', icon: <Chat />, path: '/admin/messaging' },
+  { text: 'Profile', icon: <AccountCircle />, path: '/admin/profile' },
   { text: 'Settings', icon: <Settings />, path: '/admin/settings' },
 ];
 
