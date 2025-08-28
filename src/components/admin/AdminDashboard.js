@@ -150,10 +150,10 @@ const AdminDashboard = ({ toggleDarkMode, darkMode }) => {
                Company:{user.company} 
             </Box>
             <Divider />
-            <MenuItem onClick={handleClose}>
+            <MenuItem onClick={() => { handleClose(); navigate('/admin/profile'); }}>
               <AccountCircle sx={{ mr: 1 }} /> Profile
             </MenuItem>
-            <MenuItem onClick={handleClose}>
+            <MenuItem onClick={() => { handleClose(); navigate('/admin/settings'); }}>
               <Settings sx={{ mr: 1 }} /> Settings
             </MenuItem>
             <MenuItem onClick={handleLogout}>

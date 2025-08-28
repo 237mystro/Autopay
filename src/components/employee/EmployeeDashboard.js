@@ -1,6 +1,6 @@
 // src/components/employee/EmployeeDashboard.js
 import React, { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Box,
@@ -59,6 +59,7 @@ const EmployeeDashboard = ({ toggleDarkMode, darkMode }) => {
 
 // Get user data from localStorage
   const user = JSON.parse(localStorage.getItem('user')) || {};
+    const navigate = useNavigate();
   
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -175,10 +176,12 @@ const EmployeeDashboard = ({ toggleDarkMode, darkMode }) => {
                 </Typography>
                 Company:{user.company} 
             </Box>
-            <MenuItem onClick={handleClose}>
-            <AccountCircle sx={{ mr: 1 }} />Profile
+            <MenuItem onClick={() => { handleClose(); navigate('/employee/profile'); }}>
+              <AccountCircle sx={{ mr: 1 }} />Profile
             </MenuItem>
-            <MenuItem onClick={handleClose}>My Account</MenuItem>
+            <MenuItem onClick={() => { handleClose(); navigate('/employee/settings'); }}>
+              <Settings sx={{ mr: 1 }} /> Settings
+            </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ExitToApp sx={{ mr: 1 }} /> Logout
             </MenuItem>
