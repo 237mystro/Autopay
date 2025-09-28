@@ -16,7 +16,8 @@ import {
   CircularProgress,
   Alert,
   Divider,
-  Paper
+  Paper,
+  responsiveFontSizes
 } from '@mui/material';
 import {
   People,
@@ -45,9 +46,22 @@ const DashboardOverview = () => {
   const [recentAttendance, setRecentAttendance] = useState([]);
   const [alerts, setAlerts] = useState([]);
   
+  //to adjust screen size and mobile display function
+  const [isMobile, setIsMobile] = 
+  useState(window.innerWidth <768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Get user data from localStorage
   const user = JSON.parse(localStorage.getItem('user')) || {};
 
+ 
   // Mock data - in a real app, this would come from your API
   useEffect(() => {
     const fetchData = async () => {
@@ -288,15 +302,18 @@ const DashboardOverview = () => {
           </Card>
         </Grid>
         
-        <Grid item xs={12} md={4}>
-          <Grid container spacing={{ xs: 2, md: 3 }}>
+        <Grid item xs={12} md={2}>
+          <Grid container spacing={{ xs: 2, md: 3 }}> 
+            
+            {isMobile && ( //it will make this card appear only on the mobile view
             <Grid item xs={12}>
-              <Card sx={{ height: '100%', boxShadow: 2 }}>
+             
+              <Card sx={{ height: '100%', boxShadow: 2, minHeight:'300', boxShadow: 3}}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
                     Quick Actions
                   </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <Box sx={{ display: 'flex',  gap: 2,  flexWrap:'wrap' }}>
                     <Button variant="contained" fullWidth>
                       Generate Payroll
                     </Button>
@@ -313,9 +330,9 @@ const DashboardOverview = () => {
                 </CardContent>
               </Card>
             </Grid>
-            
+              )}
             <Grid item xs={12}>
-              <Card sx={{ height: '100%', boxShadow: 2 }}>
+              <Card sx={{ height: '100%', boxShadow: 2}}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
                     Office QR Code

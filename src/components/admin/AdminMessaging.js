@@ -1,5 +1,5 @@
-// src/components/admin/AdminDashboard.js (fixed notifications)
-import React, { useState, useEffect } from 'react';
+// src/components/admin/AdminDashboard.js (add messaging route)
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -19,8 +19,7 @@ import {
   Avatar,
   Menu,
   MenuItem,
-  Badge,
-  CircularProgress
+  Badge
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -38,6 +37,7 @@ import {
   Brightness7,
   ExitToApp
 } from '@mui/icons-material';
+import { useSocket } from '../../contexts/SocketContext';
 
 const drawerWidth = 240;
 
@@ -48,17 +48,16 @@ const navItems = [
   { text: 'Attendance', icon: <Assignment />, path: '/admin/attendance' },
   { text: 'Payroll', icon: <Payment />, path: '/admin/payroll' },
   { text: 'Documents', icon: <UploadFile />, path: '/admin/documents' },
-  { text: 'Messaging', icon: <Chat />, path: '/admin/messaging' },
+  { text: 'Messaging', icon: <Chat />, path: '/admin/messaging' }, // Add this line
   { text: 'Settings', icon: <Settings />, path: '/admin/settings' },
 ];
 
 const AdminDashboard = ({ toggleDarkMode, darkMode }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { unreadCount } = useSocket();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -78,50 +77,6 @@ const AdminDashboard = ({ toggleDarkMode, darkMode }) => {
     navigate('/login');
     handleClose();
   };
-
-  // Fixed notifications fetch function
-  const fetchNotifications = async () => {
-    try {
-      setNotificationsLoading(true);
-      
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setUnreadNotifications(0);
-        setNotificationsLoading(false);
-        return;
-      }
-      
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/messages/unread-count`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      const data = await response.json();
-      
-      // Fixed: Check if data exists and has count property
-      if (data && data.success && typeof data.data === 'object' && data.data.count !== undefined) {
-        setUnreadNotifications(data.data.count);
-      } else {
-        setUnreadNotifications(0);
-      }
-    } catch (err) {
-      console.error('Fetch notifications error:', err);
-      // Set to 0 on error to prevent undefined errors
-      setUnreadNotifications(0);
-    } finally {
-      setNotificationsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-    
-    // Poll for notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
-    
-    return () => clearInterval(interval);
-  }, []);
 
   const drawer = (
     <div>
@@ -143,6 +98,9 @@ const AdminDashboard = ({ toggleDarkMode, darkMode }) => {
                 {item.icon}
               </ListItemIcon>
               <ListItemText primary={item.text} />
+              {item.text === 'Messaging' && unreadCount > 0 && (
+                <Badge badgeContent={unreadCount} color="secondary" />
+              )}
             </ListItemButton>
           </ListItem>
         ))}
@@ -178,17 +136,10 @@ const AdminDashboard = ({ toggleDarkMode, darkMode }) => {
             {darkMode ? <Brightness7 /> : <Brightness4 />}
           </IconButton>
           
-          <IconButton 
-            color="inherit" 
-            onClick={() => navigate('/admin/messaging')}
-          >
-            {notificationsLoading ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              <Badge badgeContent={unreadNotifications} color="secondary">
-                <Notifications />
-              </Badge>
-            )}
+          <IconButton color="inherit">
+            <Badge badgeContent={unreadCount} color="secondary">
+              <Notifications />
+            </Badge>
           </IconButton>
           
           <IconButton

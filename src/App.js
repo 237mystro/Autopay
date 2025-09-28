@@ -3,6 +3,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LandingPage from './components/LandingPage';
 import Login from './components/auth/Login';
@@ -11,6 +12,8 @@ import EmployeeOnboarding from './components/auth/EmployeeOnboarding';
 import AdminDashboard from './components/admin/AdminDashboard';
 import EmployeeDashboard from './components/employee/EmployeeDashboard';
 import DashboardOverview from './components/admin/DashboardOverview';
+import MessagingDashboard from './components/messaging/MessagingDashboard';
+import AnnouncementForm from './components/admin/AnnouncementForm';
 import EmployeeManagement from './components/admin/EmployeeManagement';
 import ShiftScheduling from './components/admin/ShiftScheduling';
 import PayrollProcessing from './components/admin/PayrollProcessing';
@@ -42,17 +45,31 @@ const theme = createTheme({
   },
 });
 
-function App() {
+
+const App = () => {
   const [darkMode, setDarkMode] = useState(false);
 
-  const toggleDarkMode = () => {
+  const theme = createTheme({
+    palette: {
+      mode: darkMode ? 'dark' : 'light',
+      primary: {
+        main: '#1976d2',
+      },
+      secondary: {
+        main: '#388e3c',
+      },
+    },
+  });
+
+const toggleDarkMode = () => {
     setDarkMode(!darkMode);
   };
 
   return (
-    <ThemeProvider theme={darkMode ? createTheme({ ...theme, palette: { ...theme.palette, mode: 'dark' } }) : theme}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
+       <SocketProvider>
         <Router>
           <div className="App">
             <Routes>
@@ -60,17 +77,19 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
-              {/* Admin Routes */}
-                <Route path="/admin" element={<ProtectedRoute><AdminDashboard toggleDarkMode={toggleDarkMode} darkMode={darkMode} /></ProtectedRoute>}>
+              {/* Admin Routes */}               
+               <Route path="/admin" element={<ProtectedRoute><AdminDashboard toggleDarkMode={toggleDarkMode} darkMode={darkMode} /></ProtectedRoute>}>
                 <Route index element={<DashboardOverview />} />
                 <Route path="dashboard" element={<DashboardOverview />} />
                 <Route path="employees" element={<EmployeeManagement />} />
-                <Route path="dashboard" element={<DashboardOverview />} />
+                 <Route path="messaging" element={<MessagingDashboard />} />
+                 <Route path="messaging/announcements" element={<AnnouncementForm />} />
+               <Route path="dashboard" element={<DashboardOverview />} />
                 <Route path="scheduling" element={<ShiftScheduling />} />
                 <Route path="payroll" element={<PayrollProcessing />} />
+                <Route path="attendance" element={<AttendanceDashboard />} />
                 <Route path="/admin/settings" element={<Settings />} />
                 <Route path="/admin/profile" element={<Profile />} />
-                <Route path="attendance" element={<AttendanceDashboard />} />
               <Route path="employee-onboarding" element={<ProtectedRoute><AdminDashboard><EmployeeOnboarding /></AdminDashboard></ProtectedRoute>} />
               </Route>
               
@@ -78,10 +97,11 @@ function App() {
               <Route path="/employee" element={<ProtectedRoute><EmployeeDashboard toggleDarkMode={toggleDarkMode} darkMode={darkMode} /></ProtectedRoute>}>
                 <Route index element={<EmployeeDashboardOverview />} />
                 <Route path="dashboard" element={<EmployeeDashboardOverview />} />
+                <Route path="messaging" element={<MessagingDashboard />} />
                 <Route path="checkin" element={<QRScanner />} />
                 <Route path="schedule" element={<Schedule />} />
                 <Route path="payments" element={<Payments />} />
-                <Route path="/employee/change-password" element={<ProtectedRoute><EmployeeDashboard><ChangePassword /></EmployeeDashboard></ProtectedRoute>} />
+                <Route path="change-password" element={<ProtectedRoute><EmployeeDashboard><ChangePassword /></EmployeeDashboard></ProtectedRoute>} />
                 <Route path="/employee/profile" element={<Profile />} />
                 <Route path="/employee/settings" element={<Settings />} />
 
@@ -89,6 +109,7 @@ function App() {
             </Routes>
           </div>
         </Router>
+      </SocketProvider>
       </AuthProvider>
     </ThemeProvider>
   );
