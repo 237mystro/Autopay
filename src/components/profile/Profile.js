@@ -36,20 +36,38 @@ const Profile = () => {
     setUser(userData);
     
     // In a real app, you would fetch employee data from the API
-    // For now, we'll mock it
+ if (userData.role === 'employee') {
+    // Use mock employee data (or fetch from API)
+    const employeeData = {
+      employeeId: "EMP1755479504390",
+      name: "employee 1",
+      email: "employee@gmail.com",
+      phone: "654917354",
+      momoNumber: "654819737",
+      position: "intern",
+      department: "kitchen",
+      salary: 100000,
+      payPerShift: 1500,
+      status: "active",
+      startDate: 1755479504393
+    };
+    setEmployee(employeeData);
+  } else {
+    // For admin/HR, use user data for employee fields
     setEmployee({
-      employeeId: 'EMP123456',
-      name: userData.name || 'John Doe',
-      email: userData.email || 'john.doe@example.com',
-      phone: '+237 678901234',
-      momoNumber: '+237 678901234',
-      position: userData.position || 'Employee',
-      department: 'Sales',
-      salary: 250000,
-      payPerShift: 5000,
-      startDate: '2023-01-15',
-      status: 'active'
+      employeeId: userData.employeeId || 'Admin',
+      name: userData.name || 'Admin User',
+      email: userData.email || '',
+      phone: userData.phone || '',
+      momoNumber: userData.momoNumber || '',
+      position: userData.position || userData.role || 'Administrator',
+      department: userData.department || userData.company || 'Administrator',
+      salary: userData.salary || 0,
+      payPerShift: userData.payPerShift || 0,
+      status: userData.status || 'active',
+      startDate: userData.startDate || Date.now()
     });
+  } 
   }, []);
 
   if (!user || !employee) {
@@ -129,7 +147,7 @@ const Profile = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Full Name" 
-                    secondary={employee.name} 
+                    secondary={user.name} 
                   />
                 </ListItem>
                 
@@ -139,7 +157,7 @@ const Profile = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Email Address" 
-                    secondary={employee.email} 
+                    secondary={user.email} 
                   />
                 </ListItem>
                 
@@ -177,7 +195,7 @@ const Profile = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Employee ID" 
-                    secondary={employee.employeeId} 
+                    secondary={employee.employeeId || 'Admin'} 
                   />
                 </ListItem>
                 
@@ -187,7 +205,7 @@ const Profile = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Position" 
-                    secondary={employee.position} 
+                    secondary={employee.position || 'Administrator'} 
                   />
                 </ListItem>
                 
@@ -197,7 +215,7 @@ const Profile = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Department" 
-                    secondary={employee.department || 'Not assigned'} 
+                    secondary={employee.department || 'Administrator'} 
                   />
                 </ListItem>
                 
@@ -207,7 +225,7 @@ const Profile = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Monthly Salary" 
-                    secondary={`${employee.salary.toLocaleString()} FCFA`} 
+                    secondary={`${employee.salary.toLocaleString()} FCFA` || 'Boss'} 
                   />
                 </ListItem>
                 
@@ -217,7 +235,7 @@ const Profile = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Pay per Shift" 
-                    secondary={`${employee.payPerShift.toLocaleString()} FCFA`} 
+                    secondary={`${employee.payPerShift.toLocaleString()} FCFA` || 'Boss'} 
                   />
                 </ListItem>
                 
@@ -227,7 +245,7 @@ const Profile = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Start Date" 
-                    secondary={new Date(employee.startDate).toLocaleDateString()} 
+                    secondary={new Date(employee.startDate).toLocaleDateString() || 'Boss'} 
                   />
                 </ListItem>
                 

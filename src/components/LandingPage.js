@@ -18,7 +18,7 @@ const LandingPage = () => {
       {/* Hero Section */}
       <Box sx={{ bgcolor: 'primary.main', color: 'white', py: { xs: 6, md: 10 } }}>
         <Container maxWidth="lg">
-          <Grid 
+          <Grid  
             container 
             spacing={4} 
             alignItems="center" 

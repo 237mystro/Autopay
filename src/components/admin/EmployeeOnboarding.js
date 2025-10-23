@@ -88,7 +88,7 @@ const EmployeeOnboarding = ({ onEmployeeCreated }) => {
         
         // Callback to parent component if needed
         if (onEmployeeCreated) {
-          onEmployeeCreated(data.data);
+          onEmployeeCreated(data);
         }
       } else {
         setError(data.message || 'Failed to create employee account');

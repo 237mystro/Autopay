@@ -82,7 +82,7 @@ const Settings = () => {
       const data = await response.json();
       
       if (data.success) {
-        setSettings(data.data);
+        setSettings(data);
       } else {
         setError(data.message || 'Failed to fetch settings');
       }

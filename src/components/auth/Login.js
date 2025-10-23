@@ -23,91 +23,100 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Frontend validation
-    if (!email || !password) {
-      setError('Please fill in all fields');
-      return;
-    }
-    
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError('Please enter a valid email address');
-      return;
-    }
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  // Frontend validation
+  if (!email || !password) {
+    setError('Please fill in all fields');
+    return;
+  }
+  
+  if (!/\S+@\S+\.\S+/.test(email)) {
+    setError('Please enter a valid email address');
+    return;
+  }
+  
+  if (password.length < 6) {
+    setError('Password must be at least 6 characters');
+    return;
+  }
 
-    try {
-      setError('');
-      setLoading(true);
-      
-      // Use the API URL from environment variables
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password.trim()
-        })
-      });
-      
-      console.log('Response status:', response.status);
-      
-      // Check if response has content
-      const responseText = await response.text();
-      console.log('Raw response:', responseText);
-      
-      // Handle empty response
-      if (!responseText) {
-        throw new Error('Empty response from server');
-      }
-      
-      // Try to parse JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-        throw new Error('Invalid response from server');
-      }
-      
-      console.log('Parsed response:', data);
-      
-      if (data.success) {
-        // Store token and user data
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Redirect based on user role
-        if (data.user.role === 'employee') {
-          navigate('/employee/dashboard');
-        } else {
-          navigate('/admin/dashboard');
-        }
-      } else {
-        setError(data.message || 'Invalid email or password');
-      }
-    } catch (err) {
-      console.error('Login error:', err);
-      
-      // Handle different types of errors
-      if (err instanceof TypeError) {
-        if (err.message.includes('fetch') || err.message.includes('Failed to fetch')) {
-          setError('Cannot connect to server. Please make sure the backend is running.');
-        } else {
-          setError('Network error: ' + err.message);
-        }
-      } else if (err.message.includes('JSON')) {
-        setError('Invalid response from server. Please try again.');
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
+  try {
+    setError('');
+    setLoading(true);
+    
+    // Determine API base URL
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+    
+    console.log('Making request to:', `${apiUrl}/auth/login`);
+    
+    const response = await fetch(`${apiUrl}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: email.trim(),
+        password: password.trim()
+      })
+    });
+    
+    console.log('Response status:', response.status);
+    
+    // Check if response has content
+    const responseText = await response.text();
+    console.log('Raw response:', responseText);
+    
+    // Handle empty response
+    if (!responseText) {
+      throw new Error('Empty response from server');
     }
     
-    setLoading(false);
-  };
+    // Try to parse JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      throw new Error('Invalid response from server');
+    }
+    
+    console.log('Parsed response:', data);
+    
+    if (data.success) {
+      // Store token and user data
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Redirect based on user role
+      if (data.user.role === 'employee') {
+        navigate('/employee/dashboard');
+      } else {
+        navigate('/admin/dashboard');
+      }
+    } else {
+      setError(data.message || 'Invalid email or password');
+    }
+  } catch (err) {
+    console.error('Login error:', err);
+    
+    // Handle different types of errors
+    if (err instanceof TypeError) {
+      if (err.message.includes('fetch') || err.message.includes('Failed to fetch')) {
+        setError('Cannot connect to server. Please make sure the backend is running on port 5000.');
+      } else {
+        setError('Network error: ' + err.message);
+      }
+    } else if (err.message.includes('JSON')) {
+      setError('Invalid response from server. Please try again.');
+    } else {
+      setError('An unexpected error occurred. Please try again.');
+    }
+  }
+  
+  setLoading(false);
+};
 
   return (
     <Container component="main" maxWidth="xs">
@@ -116,11 +125,7 @@ const Login = () => {
           Sign in to AutoPayroll
         </Typography>
         
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         
         <Box component="form" onSubmit={handleSubmit} noValidate>
           <TextField
@@ -134,6 +139,8 @@ const Login = () => {
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            error={!!error && !email}
+            helperText={!!error && !email ? 'Email is required' : ''}
           />
           <TextField
             margin="normal"
@@ -146,6 +153,8 @@ const Login = () => {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            error={!!error && !password}
+            helperText={!!error && !password ? 'Password is required' : ''}
           />
           <FormControlLabel
             control={

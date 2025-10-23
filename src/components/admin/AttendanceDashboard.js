@@ -47,12 +47,12 @@ const AttendanceDashboard = () => {
       const data = await response.json();
       
       if (data.success) {
-        setAttendanceData(data.data.attendance);
+        setAttendanceData(data.attendance);
         setSummary({
-          totalEmployees: data.data.totalEmployees,
-          present: data.data.present,
-          late: data.data.late,
-          absent: data.data.absent
+          totalEmployees: data.totalEmployees,
+          present: data.present,
+          late: data.late,
+          absent: data.absent
         });
       } else {
         setError(data.message);

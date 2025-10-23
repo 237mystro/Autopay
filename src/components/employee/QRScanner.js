@@ -1,7 +1,6 @@
 // src/components/employee/QRScanner.js
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Webcam from 'react-webcam';
 import {
   Box,
   Button,
@@ -31,8 +30,11 @@ import {
   Schedule,
   AccessTime,
   Person,
-  Close
+  CameraAlt,
+  VideocamOff
 } from '@mui/icons-material';
+import Webcam from 'react-webcam';
+import jsQR from 'jsqr';
 
 const QRScanner = () => {
   const [scanning, setScanning] = useState(false);
@@ -43,16 +45,10 @@ const QRScanner = () => {
   const [checkInStatus, setCheckInStatus] = useState('idle'); // idle, processing, success, error
   const [verificationResult, setVerificationResult] = useState(null);
   const [openConfirmation, setOpenConfirmation] = useState(false);
+  const [shiftInfo, setShiftInfo] = useState(null);
   const navigate = useNavigate();
   const webcamRef = useRef(null);
-
-  // Office location coordinates (Buea - 47WP+W6J)
-  const OFFICE_LOCATION = {
-    latitude: 4.1025,
-    longitude: 9.3908
-  };
-  
-  const MAX_DISTANCE = 20; // 20 meters
+  const intervalRef = useRef(null);
 
   // Get user's current location
   const getUserLocation = () => {
@@ -116,9 +112,17 @@ const QRScanner = () => {
     return R * c; // Distance in meters
   };
 
-  // Verify if user is within allowed radius of office location
+  // Verify if user is within allowed radius of company location
   const verifyLocation = async (userCoords) => {
     try {
+      // Office location coordinates (Buea - 47WP+W6J)
+      const OFFICE_LOCATION = {
+        latitude: 4.1025,
+        longitude: 9.3908
+      };
+      
+      const MAX_DISTANCE = 20; // 20 meters radius
+      
       const distance = calculateDistance(userCoords, OFFICE_LOCATION);
       
       return {
@@ -154,6 +158,7 @@ const QRScanner = () => {
       setQrData(null);
       setCheckInStatus('idle');
       setOpenConfirmation(false);
+      setShiftInfo(null);
       
       // Get user location
       setLocationStatus('verifying');
@@ -166,9 +171,11 @@ const QRScanner = () => {
       
       if (result.allowed) {
         setLocationStatus('verified');
+        // Start QR scanning
+        startQRScanning();
       } else {
         setLocationStatus('failed');
-        setLocationError(`You are ${formatDistance(result.distance)} away from the office. Maximum allowed distance is ${MAX_DISTANCE} meters.`);
+        setLocationError(`You are ${formatDistance(result.distance)} away from the office. Maximum allowed distance is ${result.maxDistance} meters.`);
         setScanning(false);
       }
     } catch (error) {
@@ -178,14 +185,53 @@ const QRScanner = () => {
     }
   };
 
+  // Start QR scanning with webcam
+  const startQRScanning = () => {
+    intervalRef.current = setInterval(() => {
+      captureAndDecodeQR();
+    }, 500); // Scan every 500ms
+  };
+
+  // Capture image from webcam and decode QR
+  const captureAndDecodeQR = () => {
+    if (webcamRef.current && webcamRef.current.video && webcamRef.current.video.readyState === 4) {
+      const video = webcamRef.current.video;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      
+      if (code) {
+        handleScan(code.data);
+      }
+    }
+  };
+
   // Handle QR scan result
-  const handleScan = async (data) => {
+  const handleScan = (data) => {
     if (data) {
       try {
+        // Stop scanning
+        clearInterval(intervalRef.current);
+        
         const parsedData = JSON.parse(data);
-        setQrData(parsedData);
+        setQrData(data);
         setScanning(false);
         setOpenConfirmation(true);
+        
+        // Mock shift info for demo (in real app, this would come from backend)
+        setShiftInfo({
+          shiftId: parsedData.shiftId || 'SHIFT-001',
+          employeeName: parsedData.employeeName || 'Current Employee',
+          date: parsedData.date || new Date().toISOString().split('T')[0],
+          startTime: parsedData.startTime || '08:00 AM',
+          endTime: parsedData.endTime || '04:00 PM',
+          location: parsedData.location || 'Buea Office (47WP+W6J)'
+        });
       } catch (parseError) {
         console.error('QR Parse Error:', parseError);
         setCheckInStatus('error');
@@ -229,7 +275,7 @@ const QRScanner = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          qrData: JSON.stringify(qrData),
+          qrData: qrData,
           userLocation: location
         })
       });
@@ -256,6 +302,7 @@ const QRScanner = () => {
 
   // Cancel scanning
   const cancelScanning = () => {
+    clearInterval(intervalRef.current);
     setScanning(false);
     setLocation(null);
     setLocationStatus('pending');
@@ -263,6 +310,7 @@ const QRScanner = () => {
     setQrData(null);
     setCheckInStatus('idle');
     setOpenConfirmation(false);
+    setShiftInfo(null);
   };
 
   // Reset scanner
@@ -389,7 +437,7 @@ const QRScanner = () => {
                 </Typography>
                 <Button 
                   variant="outlined" 
-                  startIcon={<Close />}
+                  startIcon={<VideocamOff />}
                   onClick={cancelScanning}
                 >
                   Cancel
@@ -423,7 +471,7 @@ const QRScanner = () => {
       <Dialog open={openConfirmation} onClose={cancelScanning} maxWidth="sm" fullWidth>
         <DialogTitle>Confirm Check-In</DialogTitle>
         <DialogContent>
-          {qrData && (
+          {qrData && shiftInfo && (
             <Box>
               <Typography variant="h6" gutterBottom>
                 Shift Details
@@ -438,7 +486,7 @@ const QRScanner = () => {
                   </ListItemAvatar>
                   <ListItemText 
                     primary="Employee" 
-                    secondary={qrData.employeeName || 'Current Employee'} 
+                    secondary={shiftInfo.employeeName} 
                   />
                 </ListItem>
                 
@@ -450,7 +498,7 @@ const QRScanner = () => {
                   </ListItemAvatar>
                   <ListItemText 
                     primary="Date" 
-                    secondary={qrData.date ? new Date(qrData.date).toLocaleDateString() : 'Unknown Date'} 
+                    secondary={new Date(shiftInfo.date).toLocaleDateString()} 
                   />
                 </ListItem>
                 
@@ -462,7 +510,19 @@ const QRScanner = () => {
                   </ListItemAvatar>
                   <ListItemText 
                     primary="Time" 
-                    secondary={`${qrData.startTime || '00:00'} - ${qrData.endTime || '00:00'}`} 
+                    secondary={`${shiftInfo.startTime} - ${shiftInfo.endTime}`} 
+                  />
+                </ListItem>
+                
+                <ListItem>
+                  <ListItemAvatar>
+                    <Avatar>
+                      <LocationOn />
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText 
+                    primary="Location" 
+                    secondary={shiftInfo.location} 
                   />
                 </ListItem>
               </List>
