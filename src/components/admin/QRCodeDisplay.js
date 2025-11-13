@@ -44,14 +44,14 @@ const QRCodeDisplay = ({ shiftId, shiftInfo }) => {
   }, [shiftId]);
 
   // Mock shift info for demo
-  const mockShiftInfo = shiftInfo || {
-    employee: 'John Smith',
-    position: 'Cashier',
-    date: new Date().toLocaleDateString(),
-    startTime: '08:00 AM',
-    endTime: '04:00 PM',
-    location: 'Buea Office (47WP+W6J)'
-  };
+  // const mockShiftInfo = shiftInfo || {
+  //   employee: 'John Smith',
+  //   position: 'Cashier',
+  //   date: new Date().toLocaleDateString(),
+  //   startTime: '08:00 AM',
+  //   endTime: '04:00 PM',
+  //   location: 'Buea Office (47WP+W6J)'
+  // };
 
   return (
     <Card>
@@ -101,7 +101,7 @@ const QRCodeDisplay = ({ shiftId, shiftInfo }) => {
           )}
         </Box>
         
-        <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+        {/* <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
             Shift Details:
           </Typography>
@@ -112,7 +112,7 @@ const QRCodeDisplay = ({ shiftId, shiftInfo }) => {
             <strong>Time:</strong> {mockShiftInfo.startTime} - {mockShiftInfo.endTime}<br />
             <strong>Location:</strong> {mockShiftInfo.location}
           </Typography>
-        </Box>
+        </Box> */}
         </CardContent>
         </Card>
   );
